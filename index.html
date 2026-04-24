@@ -3,33 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STM32 蓝牙监控 (BLE)</title>
+    <title>STM32 蓝牙监控</title>
     
-    <!-- PWA Manifest (内嵌) -->
     <link rel="manifest" href="data:application/manifest+json,{
-        %22name%22: %22STM32 蓝牙监控系统%22,
-        %22short_name%22: %22蓝牙监控%22,
-        %22description%22: %22连接JDY-33，实时显示温度、电压、电流，并可设置报警阈值%22,
-        %22start_url%22: %22.%22,
-        %22display%22: %22standalone%22,
-        %22orientation%22: %22portrait%22,
-        %22background_color%22: %22%23f5f7fb%22,
-        %22theme_color%22: %22%233b82f6%22,
-        %22icons%22: [
-            {
-                %22src%22: %22https://placehold.co/192x192/3b82f6/white?text=BT%22,
-                %22sizes%22: %22192x192%22,
-                %22type%22: %22image/png%22
-            },
-            {
-                %22src%22: %22https://placehold.co/512x512/3b82f6/white?text=BT+Monitor%22,
-                %22sizes%22: %22512x512%22,
-                %22type%22: %22image/png%22,
-                %22purpose%22: %22any maskable%22
-            }
+        %22name%22:%22STM32%20%E8%93%9D%E7%89%99%E7%9B%91%E6%8E%A7%22,
+        %22short_name%22:%22%E8%93%9D%E7%89%99%E7%9B%91%E6%8E%A7%22,
+        %22start_url%22:%22.%22,
+        %22display%22:%22standalone%22,
+        %22orientation%22:%22portrait%22,
+        %22background_color%22:%22%23f5f7fb%22,
+        %22theme_color%22:%22%233b82f6%22,
+        %22icons%22:[
+            {%22src%22:%22https://placehold.co/192x192/3b82f6/white?text=BT%22,%22sizes%22:%22192x192%22,%22type%22:%22image/png%22},
+            {%22src%22:%22https://placehold.co/512x512/3b82f6/white?text=BT+Monitor%22,%22sizes%22:%22512x512%22,%22type%22:%22image/png%22,%22purpose%22:%22any%20maskable%22}
         ]
     }">
-    
     <meta name="theme-color" content="#3b82f6">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -37,55 +25,32 @@
     <link rel="apple-touch-icon" href="https://placehold.co/192x192/3b82f6/white?text=BT">
     
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body {
-            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
-            background: #f5f7fb;
-            min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 12px;
-        }
-        .card {
-            max-width: 480px;
-            width: 100%;
-            background: white;
-            border-radius: 32px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            padding: 24px 20px;
-        }
-        h1 { font-size: 1.8rem; font-weight: 600; margin-bottom: 6px; color: #1e293b; display: flex; align-items: center; gap: 8px; }
-        .subtitle { color: #64748b; margin-bottom: 20px; font-weight: 400; border-left: 4px solid #3b82f6; padding-left: 12px; }
-        .status-bar { display: flex; align-items: center; justify-content: space-between; background: #f8fafc; padding: 12px 16px; border-radius: 40px; margin-bottom: 24px; }
-        .status-indicator { display: flex; align-items: center; gap: 8px; }
-        .led { width: 12px; height: 12px; border-radius: 50%; background: #cbd5e1; transition: background 0.2s; }
-        .led.connected { background: #10b981; box-shadow: 0 0 8px #10b98180; }
-        .btn-group { display: flex; gap: 8px; }
-        .btn {
-            border: none; background: #e2e8f0; padding: 8px 16px; border-radius: 30px;
-            font-weight: 500; color: #1e293b; cursor: pointer; transition: all 0.15s;
-            font-size: 0.9rem; border: 1px solid transparent;
-        }
-        .btn-primary { background: #3b82f6; color: white; box-shadow: 0 4px 8px #3b82f640; }
-        .btn-primary:active { background: #2563eb; }
-        .btn-outline { background: transparent; border: 1px solid #cbd5e1; }
-        .btn-outline:active { background: #f1f5f9; }
-        .btn:disabled { opacity: 0.5; pointer-events: none; }
-        .data-grid { display: flex; flex-direction: column; gap: 16px; margin-bottom: 28px; }
-        .data-item { background: #f8fafc; border-radius: 24px; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; }
-        .data-label { font-size: 1.2rem; font-weight: 500; color: #334155; }
-        .data-value { font-size: 2.4rem; font-weight: 700; color: #0f172a; letter-spacing: -0.5px; }
-        .data-unit { font-size: 1rem; font-weight: 400; color: #64748b; margin-left: 4px; }
-        .section-title { font-size: 1.2rem; font-weight: 600; margin-bottom: 16px; color: #1e293b; }
-        .threshold-item { display: flex; align-items: center; margin-bottom: 14px; gap: 10px; }
-        .threshold-item label { width: 70px; font-weight: 500; color: #475569; }
-        .threshold-item input { flex: 1; padding: 12px 14px; border: 1.5px solid #e2e8f0; border-radius: 20px; font-size: 1rem; background: white; outline: none; }
-        .threshold-item input:focus { border-color: #3b82f6; }
-        .action-buttons { display: flex; gap: 12px; margin-top: 20px; }
-        .action-buttons .btn { flex: 1; padding: 14px 0; text-align: center; font-size: 1.1rem; }
-        .footer-note { margin-top: 20px; text-align: center; color: #94a3b8; font-size: 0.8rem; }
-        .warning { background: #fef9c3; color: #854d0e; padding: 12px; border-radius: 20px; font-size: 0.9rem; margin-bottom: 16px; }
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Segoe UI',Roboto,system-ui,sans-serif;background:#f5f7fb;min-height:100vh;display:flex;justify-content:center;align-items:center;padding:12px}
+        .card{max-width:480px;width:100%;background:white;border-radius:32px;box-shadow:0 10px 30px rgba(0,0,0,.05);padding:24px 20px}
+        h1{font-size:1.8rem;font-weight:600;margin-bottom:6px;color:#1e293b;display:flex;align-items:center;gap:8px}
+        .subtitle{color:#64748b;margin-bottom:20px;font-weight:400;border-left:4px solid #3b82f6;padding-left:12px}
+        .status-bar{display:flex;align-items:center;justify-content:space-between;background:#f8fafc;padding:12px 16px;border-radius:40px;margin-bottom:24px}
+        .led{width:12px;height:12px;border-radius:50%;background:#cbd5e1;transition:background .2s}
+        .led.connected{background:#10b981;box-shadow:0 0 8px #10b98180}
+        .btn{border:none;background:#e2e8f0;padding:8px 16px;border-radius:30px;font-weight:500;color:#1e293b;cursor:pointer;font-size:.9rem;border:1px solid transparent}
+        .btn-primary{background:#3b82f6;color:white;box-shadow:0 4px 8px #3b82f640}
+        .btn-outline{background:transparent;border:1px solid #cbd5e1}
+        .btn:disabled{opacity:.5;pointer-events:none}
+        .data-grid{display:flex;flex-direction:column;gap:16px;margin-bottom:28px}
+        .data-item{background:#f8fafc;border-radius:24px;padding:18px 20px;display:flex;align-items:center;justify-content:space-between}
+        .data-label{font-size:1.2rem;font-weight:500;color:#334155}
+        .data-value{font-size:2.4rem;font-weight:700;color:#0f172a}
+        .data-unit{font-size:1rem;font-weight:400;color:#64748b;margin-left:4px}
+        .section-title{font-size:1.2rem;font-weight:600;margin-bottom:16px;color:#1e293b}
+        .threshold-item{display:flex;align-items:center;margin-bottom:14px;gap:10px}
+        .threshold-item label{width:70px;font-weight:500;color:#475569}
+        input{flex:1;padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:20px;font-size:1rem;background:white;outline:none}
+        input:focus{border-color:#3b82f6}
+        .action-buttons{display:flex;gap:12px;margin-top:20px}
+        .action-buttons .btn{flex:1;padding:14px 0;text-align:center;font-size:1.1rem}
+        .footer-note{margin-top:20px;text-align:center;color:#94a3b8;font-size:.8rem}
+        .warning{background:#fef9c3;color:#854d0e;padding:12px;border-radius:20px;font-size:.9rem;margin-bottom:16px}
     </style>
 </head>
 <body>
@@ -93,146 +58,95 @@
     <h1>📟 监测系统</h1>
     <div class="subtitle">JDY-33 · BLE</div>
     <div class="status-bar">
-        <div class="status-indicator">
-            <span class="led" id="led"></span>
-            <span id="statusText">未连接</span>
-        </div>
-        <div class="btn-group">
+        <div><span class="led" id="led"></span> <span id="statusText">未连接</span></div>
+        <div>
             <button class="btn btn-primary" id="connectBtn">🔗 连接</button>
             <button class="btn btn-outline" id="disconnectBtn" disabled>断开</button>
         </div>
     </div>
-    <div id="compatWarning" class="warning" style="display: none;">⚠️ 当前浏览器不支持 Web Bluetooth，请使用 Chrome/Edge Android 版。</div>
     <div class="data-grid">
         <div class="data-item"><span class="data-label">🌡️ 温度</span><span class="data-value" id="tempDisplay">--<span class="data-unit">°C</span></span></div>
         <div class="data-item"><span class="data-label">⚡ 电压</span><span class="data-value" id="voltDisplay">--<span class="data-unit">V</span></span></div>
         <div class="data-item"><span class="data-label">🔌 电流</span><span class="data-value" id="currDisplay">--<span class="data-unit">A</span></span></div>
     </div>
     <div class="section-title">⚙️ 报警阈值</div>
-    <div class="threshold-item"><label>温度</label><input type="number" id="tempThreshold" value="30.0" step="0.5" min="0" max="100"> <span style="margin-left:6px;">°C</span></div>
-    <div class="threshold-item"><label>电流</label><input type="number" id="currThreshold" value="2.00" step="0.10" min="0" max="10"> <span style="margin-left:6px;">A</span></div>
-    <div class="threshold-item"><label>电压</label><input type="number" id="voltThreshold" value="5.50" step="0.10" min="0" max="30"> <span style="margin-left:6px;">V</span></div>
+    <div class="threshold-item"><label>温度</label><input type="number" id="tempThreshold" value="30.0" step="0.5"> <span>°C</span></div>
+    <div class="threshold-item"><label>电流</label><input type="number" id="currThreshold" value="2.00" step="0.10"> <span>A</span></div>
+    <div class="threshold-item"><label>电压</label><input type="number" id="voltThreshold" value="5.50" step="0.10"> <span>V</span></div>
     <div class="action-buttons">
         <button class="btn btn-primary" id="updateThresholdBtn">📤 更新阈值</button>
         <button class="btn btn-outline" id="stopAlarmBtn">🔕 停止报警</button>
     </div>
     <div class="footer-note" id="messageFooter">就绪</div>
 </div>
+
 <script>
+    // Service Worker 注册（安装到桌面必需）
     if ('serviceWorker' in navigator) {
-        const swCode = `self.addEventListener('install',()=>self.skipWaiting());self.addEventListener('activate',()=>self.clients.claim());self.addEventListener('fetch',(e)=>e.respondWith(fetch(e.request)));`;
-        const blob = new Blob([swCode], { type: 'application/javascript' });
-        navigator.serviceWorker.register(URL.createObjectURL(blob));
+        navigator.serviceWorker.register('data:application/javascript,' + encodeURIComponent(
+            "self.addEventListener('install',function(){self.skipWaiting()});" +
+            "self.addEventListener('activate',function(){self.clients.claim()});" +
+            "self.addEventListener('fetch',function(e){e.respondWith(fetch(e.request))});"
+        ));
     }
-    (function(){"use strict";
-        // 检查 Web Bluetooth 支持
-        if (!navigator.bluetooth) {
-            document.getElementById('compatWarning').style.display = 'block';
-            document.getElementById('connectBtn').disabled = true;
-            document.getElementById('messageFooter').textContent = '浏览器不支持 Web Bluetooth';
+
+    (function(){
+        if(!navigator.bluetooth){
+            document.getElementById('messageFooter').textContent='浏览器不支持蓝牙';
+            return;
         }
 
-        const led=document.getElementById('led'),statusText=document.getElementById('statusText'),connectBtn=document.getElementById('connectBtn'),disconnectBtn=document.getElementById('disconnectBtn');
-        const tempDisplay=document.getElementById('tempDisplay'),voltDisplay=document.getElementById('voltDisplay'),currDisplay=document.getElementById('currDisplay');
-        const tempThreshold=document.getElementById('tempThreshold'),currThreshold=document.getElementById('currThreshold'),voltThreshold=document.getElementById('voltThreshold');
-        const updateThresholdBtn=document.getElementById('updateThresholdBtn'),stopAlarmBtn=document.getElementById('stopAlarmBtn'),messageFooter=document.getElementById('messageFooter');
+        const serviceUUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
+        const charUUID = '0000ffe1-0000-1000-8000-00805f9b34fb';
+        let device, server, txChar, rxChar, connected = false;
 
-        // JDY-33 BLE 服务 UUID (默认透传服务)
-        const SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
-        const CHAR_WRITE_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb';
-        const CHAR_NOTIFY_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb';
-
-        let bleDevice=null, bleServer=null, txChar=null, rxChar=null, isConnected=false, buffer='';
-
-        function setConnected(s){
-            isConnected=s;
-            if(s){
-                led.classList.add('connected'); statusText.textContent='已连接';
-                connectBtn.disabled=true; disconnectBtn.disabled=false;
-                messageFooter.textContent='蓝牙已连接';
-            }else{
-                led.classList.remove('connected'); statusText.textContent='未连接';
-                connectBtn.disabled=!navigator.bluetooth; disconnectBtn.disabled=true;
-                messageFooter.textContent='已断开';
-                tempDisplay.innerHTML='--<span class="data-unit">°C</span>';
-                voltDisplay.innerHTML='--<span class="data-unit">V</span>';
-                currDisplay.innerHTML='--<span class="data-unit">A</span>';
-            }
+        function setConnected(state){
+            connected = state;
+            document.getElementById('led').className = 'led' + (state ? ' connected' : '');
+            document.getElementById('statusText').textContent = state ? '已连接' : '未连接';
+            document.getElementById('connectBtn').disabled = state;
+            document.getElementById('disconnectBtn').disabled = !state;
         }
 
-        async function sendCommand(cmd){
-            if(!txChar){ messageFooter.textContent='未连接或特征值不可用'; return false; }
-            try{
-                const encoder=new TextEncoder();
-                await txChar.writeValue(encoder.encode(cmd+'\r\n'));
-                messageFooter.textContent=`已发送: ${cmd}`;
-                return true;
-            }catch(e){ messageFooter.textContent='发送失败'; return false; }
-        }
-
-        function parseLine(l){
-            l=l.trim(); if(!l) return;
-            let m=l.match(/TEMP:([-+]?\d*\.?\d+)/i);
-            if(m) tempDisplay.innerHTML=`${parseFloat(m[1]).toFixed(1)}<span class="data-unit">°C</span>`;
-            m=l.match(/VOLT:([-+]?\d*\.?\d+)/i);
-            if(m) voltDisplay.innerHTML=`${parseFloat(m[1]).toFixed(2)}<span class="data-unit">V</span>`;
-            m=l.match(/CURR:([-+]?\d*\.?\d+)/i);
-            if(m) currDisplay.innerHTML=`${parseFloat(m[1]).toFixed(2)}<span class="data-unit">A</span>`;
-        }
-
-        function handleNotifications(e){
-            const val=e.target.value;
-            const text=new TextDecoder().decode(val);
-            buffer+=text;
-            const lines=buffer.split('\n');
-            buffer=lines.pop()||'';
-            lines.forEach(l=>parseLine(l.replace(/\r$/,'')));
-        }
-
-        connectBtn.addEventListener('click',async()=>{
-            if(!navigator.bluetooth){ alert('浏览器不支持 Web Bluetooth'); return; }
-            try{
-                bleDevice=await navigator.bluetooth.requestDevice({
+        document.getElementById('connectBtn').onclick = async () => {
+            try {
+                device = await navigator.bluetooth.requestDevice({
                     filters:[{namePrefix:'JDY'}],
-                    optionalServices:[SERVICE_UUID]
+                    optionalServices:[serviceUUID]
                 });
-                bleDevice.addEventListener('gattserverdisconnected',()=>{
-                    setConnected(false);
-                    bleDevice=null; bleServer=null; txChar=null; rxChar=null;
-                });
-                bleServer=await bleDevice.gatt.connect();
-                const service=await bleServer.getPrimaryService(SERVICE_UUID);
-                txChar=await service.getCharacteristic(CHAR_WRITE_UUID);
-                rxChar=await service.getCharacteristic(CHAR_NOTIFY_UUID);
+                device.addEventListener('gattserverdisconnected', () => setConnected(false));
+                server = await device.gatt.connect();
+                const service = await server.getPrimaryService(serviceUUID);
+                txChar = await service.getCharacteristic(charUUID);
+                rxChar = await service.getCharacteristic(charUUID);
                 await rxChar.startNotifications();
-                rxChar.addEventListener('characteristicvaluechanged',handleNotifications);
+                rxChar.addEventListener('characteristicvaluechanged', e => {
+                    let text = new TextDecoder().decode(e.target.value);
+                    // 解析 TEMP:xxx,VOLT:xxx,CURR:xxx
+                    let t = text.match(/TEMP:([\d.]+)/), v = text.match(/VOLT:([\d.]+)/), c = text.match(/CURR:([\d.]+)/);
+                    if(t) document.getElementById('tempDisplay').innerHTML = parseFloat(t[1]).toFixed(1)+'<span class="data-unit">°C</span>';
+                    if(v) document.getElementById('voltDisplay').innerHTML = parseFloat(v[1]).toFixed(2)+'<span class="data-unit">V</span>';
+                    if(c) document.getElementById('currDisplay').innerHTML = parseFloat(c[1]).toFixed(2)+'<span class="data-unit">A</span>';
+                });
                 setConnected(true);
-            }catch(e){
-                console.error(e);
-                messageFooter.textContent='连接失败: '+e.message;
-            }
-        });
+            } catch(err){ alert('连接失败：'+err.message); }
+        };
 
-        disconnectBtn.addEventListener('click',()=>{
-            if(bleDevice&&bleDevice.gatt.connected) bleDevice.gatt.disconnect();
-        });
+        document.getElementById('disconnectBtn').onclick = () => device && device.gatt.disconnect();
 
-        updateThresholdBtn.addEventListener('click',async()=>{
-            if(!isConnected){ messageFooter.textContent='请先连接蓝牙'; return; }
-            const tv=parseFloat(tempThreshold.value),cv=parseFloat(currThreshold.value),vv=parseFloat(voltThreshold.value);
-            if(isNaN(tv)||isNaN(cv)||isNaN(vv)){ messageFooter.textContent='阈值必须为数字'; return; }
-            await sendCommand(`SET_TEMP_ALARM:${tv.toFixed(1)}`);
-            await sendCommand(`SET_CURR_ALARM:${cv.toFixed(2)}`);
-            await sendCommand(`SET_VOLT_ALARM:${vv.toFixed(2)}`);
-            messageFooter.textContent='阈值已发送';
-        });
+        async function send(cmd){
+            if(!txChar) return;
+            await txChar.writeValue(new TextEncoder().encode(cmd+'\r\n'));
+        }
 
-        stopAlarmBtn.addEventListener('click',async()=>{
-            if(!isConnected){ messageFooter.textContent='请先连接蓝牙'; return; }
-            await sendCommand('CLEAR_ALARM');
-        });
+        document.getElementById('updateThresholdBtn').onclick = () => {
+            send('SET_TEMP_ALARM:'+document.getElementById('tempThreshold').value);
+            send('SET_CURR_ALARM:'+document.getElementById('currThreshold').value);
+            send('SET_VOLT_ALARM:'+document.getElementById('voltThreshold').value);
+            document.getElementById('messageFooter').textContent = '阈值已发送';
+        };
 
-        setConnected(false);
+        document.getElementById('stopAlarmBtn').onclick = () => send('CLEAR_ALARM');
     })();
 </script>
 </body>
