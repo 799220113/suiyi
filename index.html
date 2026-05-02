@@ -188,14 +188,14 @@
             if (device && device.gatt.connected) device.gatt.disconnect();
         };
 
-        document.getElementById('updateThresholdBtn').onclick = () => {
-            send('SET_TEMP_ALARM:' + document.getElementById('tempThreshold').value);
-            send('SET_CURR_ALARM:' + document.getElementById('currThreshold').value);
-            send('SET_VOLT_ALARM:' + document.getElementById('voltThreshold').value);
-            messageFooter.textContent = '指令已尝试发送，请查看下方日志';
-        };
+document.getElementById('updateThresholdBtn').onclick = () => {
+    send('T:' + document.getElementById('tempThreshold').value);
+    send('C:' + document.getElementById('currThreshold').value);
+    send('V:' + document.getElementById('voltThreshold').value);
+    messageFooter.textContent = '指令已发送';
+};
 
-        document.getElementById('stopAlarmBtn').onclick = () => send('CLEAR_ALARM');
+document.getElementById('stopAlarmBtn').onclick = () => send('X');
 
         document.getElementById('sendManualBtn').onclick = () => {
             let cmd = document.getElementById('manualCmd').value;
