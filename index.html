@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>STM32 蓝牙监控</title>
+    <title>STM32 蓝牙监控 (修复版)</title>
     
     <link rel="manifest" href="data:application/manifest+json,{
         %22name%22:%22STM32%20%E8%93%9D%E7%89%99%E7%9B%91%E6%8E%A7%22,
@@ -51,14 +51,14 @@
         .action-buttons .btn{flex:1;padding:14px 0;text-align:center;font-size:1.1rem}
         .footer-note{margin-top:20px;text-align:center;color:#94a3b8;font-size:.8rem}
         .warning{background:#fef9c3;color:#854d0e;padding:12px;border-radius:20px;font-size:.9rem;margin-bottom:16px}
-        .debug-area{background:#1e293b;color:#0f0;font-family:monospace;padding:12px;border-radius:16px;margin-top:16px;font-size:0.8rem;max-height:120px;overflow-y:auto}
-        .debug-area span{display:block}
+        .debug-panel{background:#1e293b;color:#0f0;font-family:monospace;padding:12px;border-radius:16px;margin-top:16px;font-size:0.75rem;max-height:150px;overflow-y:auto;word-break:break-all}
+        .debug-panel div{margin-bottom:4px}
     </style>
 </head>
 <body>
 <div class="card">
     <h1>📟 监测系统</h1>
-    <div class="subtitle">JDY-33 · BLE</div>
+    <div class="subtitle">JDY-33 · BLE调试版</div>
     <div class="status-bar">
         <div><span class="led" id="led"></span> <span id="statusText">未连接</span></div>
         <div>
@@ -82,20 +82,16 @@
         <button class="btn btn-outline" id="stopAlarmBtn">🔕 停止报警</button>
     </div>
     
-    <!-- 新增手动调试区 -->
-    <div class="section-title" style="margin-top:20px;">🛠️ 手动指令测试</div>
+    <div class="section-title" style="margin-top:20px;">🛠️ 手动指令与调试</div>
     <div class="threshold-item">
-        <input type="text" id="manualCmd" placeholder="输入指令, 如 SET_TEMP_ALARM:30.0">
+        <input type="text" id="manualCmd" placeholder="输入指令,例如 CLEAR_ALARM">
         <button class="btn btn-primary" id="sendManualBtn">发送</button>
     </div>
-    <div class="debug-area" id="debugBox">
-        <span>等待调试信息...</span>
-    </div>
+    <div class="debug-panel" id="debugBox"></div>
     <div class="footer-note" id="messageFooter">就绪</div>
 </div>
 
 <script>
-    // Service Worker 注册
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('data:application/javascript,' + encodeURIComponent(
             "self.addEventListener('install',function(){self.skipWaiting()});" +
@@ -116,12 +112,12 @@
         const debugBox = document.getElementById('debugBox');
         const messageFooter = document.getElementById('messageFooter');
 
-        function logDebug(msg) {
-            const span = document.createElement('span');
-            span.textContent = '> ' + msg;
-            debugBox.appendChild(span);
+        function log(msg, isError = false) {
+            const entry = document.createElement('div');
+            entry.style.color = isError ? '#ff8888' : '#0f0';
+            entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+            debugBox.appendChild(entry);
             debugBox.scrollTop = debugBox.scrollHeight;
-            if (debugBox.children.length > 50) debugBox.removeChild(debugBox.children[0]);
         }
 
         function setConnected(state){
@@ -130,15 +126,40 @@
             document.getElementById('statusText').textContent = state ? '已连接' : '未连接';
             document.getElementById('connectBtn').disabled = state;
             document.getElementById('disconnectBtn').disabled = !state;
-            if (state) logDebug('✅ 蓝牙已连接');
-            else logDebug('⛔ 蓝牙已断开');
+            if (state) log('✅ 蓝牙已连接');
+            else log('⛔ 蓝牙已断开');
+        }
+
+        // 发送函数：先尝试带响应写入，失败则尝试无响应写入
+        async function send(cmd){
+            if(!txChar) {
+                log('❌ 未获取到发送特征值', true);
+                return;
+            }
+            const fullCmd = cmd + '\r\n';
+            log('📤 准备发送: ' + cmd);
+            try {
+                // 先尝试带响应的写入
+                await txChar.writeValue(new TextEncoder().encode(fullCmd));
+                log('✅ 带响应写入成功');
+            } catch (e1) {
+                log('⚠️ 带响应写入失败: ' + e1.message, true);
+                try {
+                    // 尝试无响应写入
+                    await txChar.writeValueWithoutResponse(new TextEncoder().encode(fullCmd));
+                    log('✅ 无响应写入成功');
+                } catch (e2) {
+                    log('❌ 无响应写入也失败: ' + e2.message, true);
+                    messageFooter.textContent = '发送失败，请查看日志';
+                }
+            }
         }
 
         document.getElementById('connectBtn').onclick = async () => {
             try {
                 device = await navigator.bluetooth.requestDevice({
-                    filters:[{namePrefix:'JDY'}],
-                    optionalServices:[serviceUUID]
+                    filters: [{ namePrefix: 'JDY' }],
+                    optionalServices: [serviceUUID]
                 });
                 device.addEventListener('gattserverdisconnected', () => setConnected(false));
                 server = await device.gatt.connect();
@@ -148,49 +169,41 @@
                 await rxChar.startNotifications();
                 rxChar.addEventListener('characteristicvaluechanged', e => {
                     let text = new TextDecoder().decode(e.target.value);
-                    // 显示所有接收到的原始数据（调试用）
-                    logDebug('📩 收到: ' + text);
-                    // 解析传感器数据
-                    let t = text.match(/TEMP:([\d.]+)/), v = text.match(/VOLT:([\d.]+)/), c = text.match(/CURR:([\d.]+)/);
+                    log('📩 收到: ' + text);
+                    let t = text.match(/TEMP:([\d.]+)/), 
+                        v = text.match(/VOLT:([\d.]+)/), 
+                        c = text.match(/CURR:([\d.]+)/);
                     if(t) document.getElementById('tempDisplay').innerHTML = parseFloat(t[1]).toFixed(1)+'<span class="data-unit">°C</span>';
                     if(v) document.getElementById('voltDisplay').innerHTML = parseFloat(v[1]).toFixed(2)+'<span class="data-unit">V</span>';
                     if(c) document.getElementById('currDisplay').innerHTML = parseFloat(c[1]).toFixed(2)+'<span class="data-unit">A</span>';
                 });
                 setConnected(true);
-            } catch(err){ alert('连接失败：'+err.message); logDebug('❌ 连接失败: '+err.message); }
+            } catch(err) { 
+                log('❌ 连接失败: ' + err.message, true);
+                alert('连接失败：' + err.message); 
+            }
         };
 
-        document.getElementById('disconnectBtn').onclick = () => device && device.gatt.disconnect();
-
-        async function send(cmd){
-            if(!txChar) return;
-            try {
-                logDebug('📤 发送: ' + cmd);
-                await txChar.writeValue(new TextEncoder().encode(cmd+'\r\n'));
-                messageFooter.textContent = '已发送: ' + cmd;
-            } catch(e) {
-                logDebug('❌ 发送失败: ' + e.message);
-                messageFooter.textContent = '发送失败';
-            }
-        }
+        document.getElementById('disconnectBtn').onclick = () => {
+            if (device && device.gatt.connected) device.gatt.disconnect();
+        };
 
         document.getElementById('updateThresholdBtn').onclick = () => {
-            send('SET_TEMP_ALARM:'+document.getElementById('tempThreshold').value);
-            send('SET_CURR_ALARM:'+document.getElementById('currThreshold').value);
-            send('SET_VOLT_ALARM:'+document.getElementById('voltThreshold').value);
+            send('SET_TEMP_ALARM:' + document.getElementById('tempThreshold').value);
+            send('SET_CURR_ALARM:' + document.getElementById('currThreshold').value);
+            send('SET_VOLT_ALARM:' + document.getElementById('voltThreshold').value);
+            messageFooter.textContent = '指令已尝试发送，请查看下方日志';
         };
 
         document.getElementById('stopAlarmBtn').onclick = () => send('CLEAR_ALARM');
 
-        // 手动指令发送
         document.getElementById('sendManualBtn').onclick = () => {
             let cmd = document.getElementById('manualCmd').value;
-            if(cmd) send(cmd);
+            if (cmd) send(cmd);
             else messageFooter.textContent = '请输入指令';
         };
 
-        // 初始状态
-        logDebug('页面就绪，等待蓝牙连接...');
+        log('🔍 调试模式已启动，请连接蓝牙');
     })();
 </script>
 </body>
